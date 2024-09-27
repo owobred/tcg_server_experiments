@@ -55,5 +55,4 @@ where
 
     fn try_as_auth_token(self) -> Result<Self::AuthenticationToken, Self>;
     fn try_as_matchmaking_cancel(self) -> Result<Self::MatchmakingCancel, Self>;
-    fn try_as
 }
