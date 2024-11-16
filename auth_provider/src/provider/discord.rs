@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{
-        models::{RefreshToken, DiscordOauthUser, DiscordUserId},
+        models::{DiscordOauthUser, DiscordUserId, RefreshToken},
         Database,
     },
     WebState,
@@ -149,7 +149,11 @@ impl Authenticator {
             user.user_id
         };
 
-        let auth_token = self.database.create_auth_refresh_token(&user_id).await.unwrap();
+        let auth_token = self
+            .database
+            .create_auth_refresh_token(&user_id)
+            .await
+            .unwrap();
 
         auth_token
     }

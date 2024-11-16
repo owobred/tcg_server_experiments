@@ -124,7 +124,10 @@ impl Database {
         Ok(token)
     }
 
-    pub async fn get_user_by_refresh_token(&self, refresh_token: &RefreshToken) -> Result<Option<User>, sqlx::Error> {
+    pub async fn get_user_by_refresh_token(
+        &self,
+        refresh_token: &RefreshToken,
+    ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as("select user_id from auth_refresh_tokens where token_hash = ?")
             .bind(refresh_token)
             .fetch_optional(&self.pool)
@@ -144,6 +147,20 @@ impl Database {
         // TODO: create a proper jwt here or something
 
         Ok(Some(SessionToken(user.user_id.0)))
+    }
+
+    pub async fn revoke_auth_token(
+        &self,
+        refresh_token: &RefreshToken,
+    ) -> Result<bool, sqlx::Error> {
+        Ok(
+            sqlx::query("delete from auth_refresh_tokens where token_hash = $1")
+                .bind(&refresh_token)
+                .execute(&self.pool)
+                .await?
+                .rows_affected()
+                > 0,
+        )
     }
 }
 
