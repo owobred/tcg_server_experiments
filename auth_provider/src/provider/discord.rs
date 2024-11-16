@@ -251,7 +251,7 @@ async fn handle_redirect(
     response
 }
 
-pub fn route() -> Router<WebState> {
+pub fn routes() -> Router<WebState> {
     Router::new()
         .route("/begin", get(start_auth))
         .route("/redirect", get(handle_redirect))

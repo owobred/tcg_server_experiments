@@ -52,7 +52,7 @@ async fn main() {
 
     let router = Router::new()
         .layer(TraceLayer::new_for_http())
-        .nest("/auth/providers", auth_provider::provider::route_all())
+        .nest("/auth/providers", auth_provider::provider::all_routes())
         .route("/auth/refresh", axum::routing::get(auth_refresh))
         .with_state(web_state);
 

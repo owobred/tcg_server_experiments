@@ -961,6 +961,7 @@ name = "matchmaking"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "dashmap",
  "serde",
  "serde_json",
  "thiserror",

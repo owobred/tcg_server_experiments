@@ -1,58 +1,101 @@
 use std::sync::Arc;
 
-use crate::auth::AuthenticationProvider;
-
-pub struct Matchmaker<A, Token>
+struct Matchmaker<T>
 where
-    A: AuthenticationProvider<AuthenticationToken = Token>,
+    T: Clone,
 {
-    authentication_provider: Arc<A>,
+    _player_id: std::marker::PhantomData<T>,
 }
 
-impl<A, Token> Matchmaker<A, Token>
+impl<T> Matchmaker<T>
 where
-    A: AuthenticationProvider<AuthenticationToken = Token>,
+    T: Clone,
 {
-    pub fn create_user_handler(&self) -> UserHandler<A, Token> {
-        UserHandler {
-            authentication_provider: self.authentication_provider.clone(),
+    pub fn add_server(self: Arc<Self>, info: ServerInfo) {
+        todo!()
+    }
+
+    pub fn add_player_to_pool(self: Arc<Self>, info: PlayerInfo<T>) -> MatchmakerPlayerHandle<T> {
+        MatchmakerPlayerHandle {
+            matchmaker: self,
+            player_info: info,
         }
     }
-}
 
-pub struct UserHandler<A, Token>
-where
-    A: AuthenticationProvider<AuthenticationToken = Token>,
-{
-    authentication_provider: Arc<A>,
-}
+    pub fn remove_player_from_pool(self: Arc<Self>, player_id: T) {
+        todo!()
+    }
 
-impl<A, Token> UserHandler<A, Token>
-where
-    A: AuthenticationProvider<AuthenticationToken = Token>,
-{
-    async fn handle_user_connection<C, M>(self, mut connection: C)
-    where
-        C: RawUserConnection<RawMessage = M>,
-        M: TryCastMatchmakingMessage<AuthenticationToken = Token>,
-    {
-        let user_id = connection.next_message().await;
+    fn find_best_match(self: Arc<Self>, info: PlayerInfo<T>) -> Option<PotentialMatchup<T>> {
+        todo!()
+    }
+
+    fn score_matchup(self: Arc<Self>) {}
+
+    fn find_best_server_for_match(self: Arc<Self>, matchup: PotentialMatchup<T>) -> Match<T> {
+        todo!()
     }
 }
 
-pub trait RawUserConnection {
-    type RawMessage;
-
-    fn next_message(&mut self) -> impl std::future::Future<Output = Option<Self::RawMessage>>;
+struct PotentialMatchup<T>
+where
+    T: Clone,
+{
+    player: T,
+    opponent: T,
 }
 
-pub trait TryCastMatchmakingMessage
+struct Match<T>
 where
-    Self: Sized,
+    T: Clone,
 {
-    type AuthenticationToken;
-    type MatchmakingCancel;
+    player: T,
+    opponent: T,
+    server: ServerInfo,
+}
 
-    fn try_as_auth_token(self) -> Result<Self::AuthenticationToken, Self>;
-    fn try_as_matchmaking_cancel(self) -> Result<Self::MatchmakingCancel, Self>;
+struct PlayerInfo<T>
+where
+    T: Clone,
+{
+    id: T,
+    elo: usize,
+}
+
+struct MatchmakerPlayerHandle<T>
+where
+    T: Clone,
+{
+    matchmaker: Arc<Matchmaker<T>>,
+    player_info: PlayerInfo<T>,
+}
+
+impl<T> Drop for MatchmakerPlayerHandle<T>
+where
+    T: Clone,
+{
+    fn drop(&mut self) {
+        self.matchmaker
+            .clone()
+            .remove_player_from_pool(self.player_info.id.to_owned())
+    }
+}
+
+struct ServerInfo {
+    max_players: usize,
+    current_players: usize,
+    state: ServerState,
+}
+
+impl ServerInfo {
+    pub fn accepting_players(&self) -> bool {
+        self.current_players < self.max_players && self.state == ServerState::Normal
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ServerState {
+    Startup,
+    Normal,
+    Draining,
 }

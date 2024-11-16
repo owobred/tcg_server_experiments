@@ -4,6 +4,6 @@ use crate::WebState;
 
 pub mod discord;
 
-pub fn route_all() -> Router<WebState> {
-    Router::new().nest("/discord", discord::route())
+pub fn all_routes() -> Router<WebState> {
+    Router::new().nest("/discord", discord::routes())
 }
