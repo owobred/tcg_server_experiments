@@ -1,3 +1,4 @@
+use blake2::Digest;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::{FromRow, Type};
 
@@ -24,7 +25,29 @@ pub struct User {
 #[sqlx(transparent)]
 pub struct UserId(pub String);
 
-#[derive(Debug, Clone, Type, Serialize, Deserialize)]
+#[derive(Debug, Clone, Type)]
 #[sqlx(transparent)]
-#[serde(transparent)]
-pub struct RefreshToken(pub String);
+pub struct Token(pub Vec<u8>);
+
+impl Token {
+    pub fn get_hash(&self) -> TokenHash {
+        let mut hasher = blake2::Blake2b512::new();
+        hasher.update(&self.0);
+
+        let result = hasher.finalize();
+
+        TokenHash(result[..].to_vec())
+    }
+
+    pub fn to_hex_string(&self) -> String {
+        hex::encode(&self.0)
+    }
+
+    pub fn from_hex_string(hex_string: &str) -> Option<Self> {
+        hex::decode(hex_string).map(|bytes| Token(bytes)).ok()
+    }
+}
+
+#[derive(Debug, Clone, Type)]
+#[sqlx(transparent)]
+pub struct TokenHash(pub Vec<u8>);

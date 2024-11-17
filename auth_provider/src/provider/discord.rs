@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{
-        models::{DiscordOauthUser, DiscordUserId, RefreshToken},
+        models::{DiscordOauthUser, DiscordUserId, Token},
         Database,
     },
     WebState,
@@ -81,7 +81,7 @@ impl Authenticator {
         state_code: &str,
         redirect_code: &str,
         redirect_uri: &str,
-    ) -> RefreshToken {
+    ) -> Token {
         let state_code = StateCode(state_code.to_string());
 
         if !self.state_codes.contains(&state_code) {
@@ -151,7 +151,7 @@ impl Authenticator {
 
         let auth_token = self
             .database
-            .create_auth_refresh_token(&user_id)
+            .create_auth_token(&user_id)
             .await
             .unwrap();
 
@@ -222,12 +222,13 @@ struct QueryParams {
     code: String,
 }
 
+#[axum::debug_handler]
 async fn handle_redirect(
     State(state): State<WebState>,
     Query(params): Query<QueryParams>,
     OriginalUri(uri): OriginalUri,
 ) -> impl IntoResponse {
-    let refresh_token = state
+    let token = state
         .discord_authenticator
         .auth_response(
             &params.state,
@@ -240,13 +241,11 @@ async fn handle_redirect(
 
     response
         .headers_mut()
-        // TODO: add an `Expires` to the refresh token?
-        //       also maybe set `Path` to `/auth/refresh`
         .append(
             "Set-Cookie",
             format!(
-                "RefreshToken={}; HttpOnly; SameSite=Strict; Secure; Path=/auth/refresh",
-                refresh_token.0
+                "AuthToken={}; HttpOnly; SameSite=Strict; Secure",
+                token.to_hex_string()
             )
             .try_into()
             .unwrap(),

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use auth_provider::{
-    database::{models::RefreshToken, Database, SessionToken},
+    database::{models::Token, Database},
     provider::discord::{self, DiscordInfo},
     WebState,
 };
@@ -57,7 +57,6 @@ async fn main() {
     let router = Router::new()
         .layer(TraceLayer::new_for_http())
         .nest("/auth/providers", auth_provider::provider::all_routes())
-        .route("/auth/refresh", axum::routing::get(auth_refresh))
         .route("/auth/logout", axum::routing::post(auth_invalidate))
         .with_state(web_state);
 
@@ -70,69 +69,21 @@ async fn main() {
     axum::serve(listener, router).await.unwrap();
 }
 
-async fn auth_refresh(State(state): State<WebState>, jar: CookieJar) -> AuthRefreshResponse {
-    let refresh = jar.get("RefreshToken");
-
-    let refresh = match refresh {
-        Some(cookie) => cookie.value(),
-        None => return AuthRefreshResponse::NoCookie,
-    };
-
-    let refresh = RefreshToken(refresh.to_owned());
-
-    let session = state
-        .database
-        .create_session_token_from_refresh(&refresh)
-        .await
-        .unwrap();
-
-    match session {
-        Some(session) => AuthRefreshResponse::ValidCookie(session),
-        None => AuthRefreshResponse::InvalidCookie(jar),
-    }
-}
-
-pub enum AuthRefreshResponse {
-    NoCookie,
-    InvalidCookie(CookieJar),
-    ValidCookie(SessionToken),
-}
-
-impl IntoResponse for AuthRefreshResponse {
-    fn into_response(self) -> Response {
-        match self {
-            AuthRefreshResponse::NoCookie => Response::builder()
-                .status(axum::http::StatusCode::BAD_REQUEST)
-                .body("missing RefreshToken cookie".into())
-                .unwrap(),
-            AuthRefreshResponse::InvalidCookie(cookie_jar) => (
-                cookie_jar.remove("RefreshToken"),
-                axum::http::StatusCode::BAD_REQUEST,
-            )
-                .into_response(),
-            AuthRefreshResponse::ValidCookie(session_token) => Response::builder()
-                .status(axum::http::StatusCode::OK)
-                .body(session_token.0.into())
-                .unwrap(),
-        }
-    }
-}
-
 async fn auth_invalidate(State(state): State<WebState>, jar: CookieJar) -> impl IntoResponse {
-    let refresh = jar.get("RefreshToken");
+    let token = jar.get("AuthToken");
 
-    let refresh_token = match refresh {
+    let token = match token {
         Some(token) => token.value(),
         None => return jar,
     };
 
     let was_real_token = state
         .database
-        .revoke_auth_token(&RefreshToken(refresh_token.to_owned()))
+        .revoke_auth_token(&Token::from_hex_string(token).unwrap())
         .await
         .unwrap();
 
     trace!(?was_real_token, "revoked token");
 
-    jar.remove("RefreshToken")
+    jar.remove("AuthToken")
 }
